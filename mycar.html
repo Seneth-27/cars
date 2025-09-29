@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Rent-A-Car — Demo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#0f1724;--card:#071126;--muted:#94a3b8;--accent:#06b6d4;--accent-2:#3b82f6;--glass:rgba(255,255,255,0.03);--success:#10b981;--danger:#ef4444}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial;color:#e6eef6;background:linear-gradient(180deg,#071226 0%, #071827 100%)}
+    .wrap{max-width:1200px;margin:28px auto;padding:20px}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+    h1{margin:0;font-size:20px}
+    .sub{color:var(--muted);font-size:13px}
+
+    .searchCard{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:16px;border-radius:12px;display:flex;gap:12px;align-items:center}
+    input, select{background:var(--glass);border:none;padding:10px;border-radius:8px;color:#e6eef6}
+    .btn{padding:10px 12px;border-radius:10px;border:none;cursor:pointer}
+    .btn-primary{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#042028}
+    .layout{display:grid;grid-template-columns:320px 1fr;gap:18px;margin-top:18px}
+
+    .filters{background:linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01));padding:14px;border-radius:12px}
+    .cars{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:12px;border-radius:12px}
+    .car-img{height:140px;border-radius:8px;background-size:cover;background-position:center;margin-bottom:8px}
+    .price{font-weight:700}
+    .specs{font-size:13px;color:var(--muted);margin-top:6px}
+
+    .legend{display:flex;gap:8px;flex-wrap:wrap}
+    .chip{background:rgba(255,255,255,0.03);padding:6px 8px;border-radius:999px;font-size:13px}
+
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50}
+    .modal-card{width:720px;max-width:100%;background:#071126;padding:18px;border-radius:12px}
+
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px;border-bottom:1px dashed rgba(255,255,255,0.03);text-align:left}
+
+    footer{margin-top:18px;color:var(--muted);font-size:13px}
+
+    @media (max-width:920px){
+      .layout{grid-template-columns:1fr}
+      .cars{grid-template-columns:1fr}
+      .searchCard{flex-direction:column;align-items:stretch}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Rent-A-Car</h1>
+        <div class="sub">Demo rental site — single file (HTML/CSS/JS). No backend required.</div>
+      </div>
+      <div class="sub">Instant booking, price calc, export bookings</div>
+    </header>
+
+    <div class="searchCard">
+      <input id="q" placeholder="Search by model or brand" />
+      <select id="seatFilter"><option value="all">All seats</option><option>2</option><option>4</option><option>5</option><option>7</option></select>
+      <select id="typeFilter"><option value="all">All types</option><option>SUV</option><option>Sedan</option><option>Hatchback</option><option>Van</option></select>
+      <input id="start" type="date" />
+      <input id="end" type="date" />
+      <button id="searchBtn" class="btn btn-primary">Search</button>
+    </div>
+
+    <div class="layout">
+      <aside class="filters">
+        <h3 style="margin-top:0">Filters</h3>
+        <div style="margin-bottom:8px"><label class="sub">Price range (per day)</label>
+          <div style="display:flex;gap:8px;margin-top:6px"><input id="minP" type="number" placeholder="Min"/><input id="maxP" type="number" placeholder="Max"/></div>
+        </div>
+        <div style="margin-bottom:8px"><label class="sub">Transmission</label>
+          <div class="legend" style="margin-top:8px"><button data-trans="all" class="chip">All</button><button data-trans="auto" class="chip">Automatic</button><button data-trans="manual" class="chip">Manual</button></div>
+        </div>
+        <div style="margin-bottom:8px"><label class="sub">Fuel</label>
+          <div class="legend" style="margin-top:8px"><button data-fuel="all" class="chip">All</button><button data-fuel="petrol" class="chip">Petrol</button><button data-fuel="diesel" class="chip">Diesel</button><button data-fuel="ev" class="chip">Electric</button></div>
+        </div>
+        <hr style="border:none;border-top:1px solid rgba(255,255,255,0.03);margin:10px 0">
+        <h4 style="margin:0 0 8px 0">Your Bookings</h4>
+        <div id="bookingsArea" style="max-height:320px;overflow:auto"></div>
+        <div style="display:flex;gap:8px;margin-top:8px"><button id="exportBookings" class="btn btn-ghost">Export CSV</button><button id="clearBookings" class="btn">Clear</button></div>
+      </aside>
+
+      <main>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h3 style="margin:0">Available cars</h3>
+          <div class="small-muted" id="resultsInfo">0 results</div>
+        </div>
+
+        <div class="cars" id="cars"></div>
+
+        <footer>Demo site — data stored in your browser (localStorage).</footer>
+      </main>
+    </div>
+  </div>
+
+  <!-- modal -->
+  <div id="modal" style="display:none" class="modal" aria-hidden>
+    <div class="modal-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h3 id="modalTitle" style="margin:0">Book car</h3>
+        <button id="closeModal" class="btn">Close</button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <script>
+    // Demo car dataset
+    const carsData = [
+      {id:'c1', brand:'Toyota', model:'RAV4', type:'SUV', seats:5, price:55, trans:'auto', fuel:'petrol', img:'https://picsum.photos/seed/rav4/600/400'},
+      {id:'c2', brand:'Honda', model:'Civic', type:'Sedan', seats:5, price:45, trans:'auto', fuel:'petrol', img:'https://picsum.photos/seed/civic/600/400'},
+      {id:'c3', brand:'Tesla', model:'Model 3', type:'Sedan', seats:5, price:95, trans:'auto', fuel:'ev', img:'https://picsum.photos/seed/tesla/600/400'},
+      {id:'c4', brand:'Ford', model:'Transit', type:'Van', seats:7, price:85, trans:'manual', fuel:'diesel', img:'https://picsum.photos/seed/transit/600/400'},
+      {id:'c5', brand:'Hyundai', model:'i10', type:'Hatchback', seats:4, price:28, trans:'manual', fuel:'petrol', img:'https://picsum.photos/seed/i10/600/400'},
+      {id:'c6', brand:'BMW', model:'X5', type:'SUV', seats:5, price:120, trans:'auto', fuel:'diesel', img:'https://picsum.photos/seed/x5/600/400'}
+    ];
+
+    const LS_BOOK = 'rentacar_bookings_v1';
+    let bookings = [];
+
+    // DOM
+    const carsEl = document.getElementById('cars');
+    const qEl = document.getElementById('q');
+    const seatFilter = document.getElementById('seatFilter');
+    const typeFilter = document.getElementById('typeFilter');
+    const minP = document.getElementById('minP');
+    const maxP = document.getElementById('maxP');
+    const searchBtn = document.getElementById('searchBtn');
+    const resultsInfo = document.getElementById('resultsInfo');
+    const modal = document.getElementById('modal');
+    const modalBody = document.getElementById('modalBody');
+    const modalTitle = document.getElementById('modalTitle');
+    const closeModal = document.getElementById('closeModal');
+    const bookingsArea = document.getElementById('bookingsArea');
+    const exportBookings = document.getElementById('exportBookings');
+    const clearBookings = document.getElementById('clearBookings');
+
+    // quick init
+    function init(){
+      loadBookings();
+      renderCars(carsData);
+      renderBookings();
+      attachEvents();
+    }
+
+    function attachEvents(){
+      searchBtn.addEventListener('click', applyFilters);
+      qEl.addEventListener('keydown', (e)=>{ if(e.key==='Enter') applyFilters(); });
+      document.querySelectorAll('[data-trans]').forEach(btn=>btn.addEventListener('click', ()=>{ toggleFilter('trans', btn.dataset.trans) }));
+      document.querySelectorAll('[data-fuel]').forEach(btn=>btn.addEventListener('click', ()=>{ toggleFilter('fuel', btn.dataset.fuel) }));
+      closeModal.addEventListener('click', ()=>modal.style.display='none');
+      exportBookings.addEventListener('click', onExportBookings);
+      clearBookings.addEventListener('click', ()=>{ if(confirm('Clear all bookings?')){ bookings=[]; saveBookings(); renderBookings(); } });
+    }
+
+    let activeTrans = 'all';
+    let activeFuel = 'all';
+
+    function toggleFilter(kind, value){
+      if(kind==='trans') activeTrans = value;
+      if(kind==='fuel') activeFuel = value;
+      applyFilters();
+    }
+
+    // render car cards
+    function renderCars(list){
+      carsEl.innerHTML='';
+      list.forEach(c=>{
+        const el = document.createElement('div'); el.className='card';
+        el.innerHTML = `
+          <div class="car-img" style="background-image:url('${c.img}')"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center"><div><strong>${c.brand} ${c.model}</strong><div class="specs">${c.type} • ${c.seats} seats • ${c.trans} • ${c.fuel}</div></div><div class="price">$${c.price}/day</div></div>
+          <div style="display:flex;gap:8px;margin-top:10px"><button data-id="${c.id}" class="btn btn-primary bookBtn">Book</button><button data-id="${c.id}" class="btn btn-ghost detailsBtn">Details</button></div>
+        `;
+        carsEl.appendChild(el);
+      });
+
+      // attach book handlers
+      document.querySelectorAll('.bookBtn').forEach(b=>b.addEventListener('click', (e)=>openBooking(e.target.dataset.id)));
+      document.querySelectorAll('.detailsBtn').forEach(b=>b.addEventListener('click', (e)=>openDetails(e.target.dataset.id)));
+      resultsInfo.textContent = `${list.length} results`;
+    }
+
+    function openDetails(id){
+      const car = carsData.find(c=>c.id===id);
+      modalTitle.textContent = `${car.brand} ${car.model}`;
+      modalBody.innerHTML = `
+        <div style="display:flex;gap:12px">
+          <img src="${car.img}" style="width:240px;height:160px;object-fit:cover;border-radius:8px" />
+          <div>
+            <p class="specs">Type: ${car.type}</p>
+            <p class="specs">Seats: ${car.seats}</p>
+            <p class="specs">Transmission: ${car.trans}</p>
+            <p class="specs">Fuel: ${car.fuel}</p>
+            <p class="price">Price: $${car.price}/day</p>
+            <div style="margin-top:10px"><button class="btn btn-primary" onclick="openBooking('${car.id}')">Book this car</button></div>
+          </div>
+        </div>
+      `;
+      modal.style.display='flex';
+    }
+
+    function openBooking(id){
+      const car = carsData.find(c=>c.id===id);
+      modalTitle.textContent = `Book — ${car.brand} ${car.model}`;
+      modalBody.innerHTML = `
+        <form id="bookForm">
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <input id="name" placeholder="Full name" required />
+            <input id="email" placeholder="Email" required />
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <input id="startDate" type="date" required />
+            <input id="endDate" type="date" required />
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><label class="sub">Extras:</label>
+            <label><input type="checkbox" id="gps" /> GPS ($5/day)</label>
+            <label><input type="checkbox" id="child" /> Child seat ($3/day)</label>
+          </div>
+          <div style="margin-bottom:8px">Estimated total: <strong id="estTotal">$0</strong></div>
+          <div style="display:flex;gap:8px"><button type="submit" class="btn btn-primary">Confirm booking</button><button type="button" id="cancelBtn" class="btn">Cancel</button></div>
+        </form>
+      `;
+      // set default dates
+      const sd = document.getElementById('start');
+      const ed = document.getElementById('end');
+      const sVal = sd && sd.value ? sd.value : new Date().toISOString().slice(0,10);
+      const eVal = ed && ed.value ? ed.value : new Date(Date.now()+24*3600*1000).toISOString().slice(0,10);
+      document.getElementById('startDate').value = sVal;
+      document.getElementById('endDate').value = eVal;
+
+      // handlers
+      const bookForm = document.getElementById('bookForm');
+      const cancelBtn = document.getElementById('cancelBtn');
+      const estTotal = document.getElementById('estTotal');
+      const gps = document.getElementById('gps');
+      const child = document.getElementById('child');
+      const sdInput = document.getElementById('startDate');
+      const edInput = document.getElementById('endDate');
+
+      function calc(){
+        const s = new Date(sdInput.value);
+        const e = new Date(edInput.value);
+        let days = Math.ceil((e - s) / (1000*60*60*24));
+        if(isNaN(days) || days<1) days = 1;
+        let total = days * car.price;
+        if(gps.checked) total += days * 5;
+        if(child.checked) total += days * 3;
+        estTotal.textContent = `$${total}`;
+        return {days,total}
+      }
+      gps.addEventListener('change', calc); child.addEventListener('change', calc); sdInput.addEventListener('change', calc); edInput.addEventListener('change', calc);
+      calc();
+
+      bookForm.addEventListener('submit', (ev)=>{
+        ev.preventDefault();
+        const name = document.getElementById('name').value.trim();
+        const email = document.getElementById('email').value.trim();
+        const {days,total} = calc();
+        if(!name || !email) return alert('Provide name and email');
+        const b = {id: 'b'+Math.random().toString(36).slice(2,9), carId:car.id, car: car.brand+' '+car.model, name, email, start:sdInput.value, end:edInput.value, days, total, extras:{gps:gps.checked, child:child.checked}, created:new Date().toISOString()};
+        bookings.push(b);
+        saveBookings();
+        renderBookings();
+        alert('Booking confirmed — total: $'+total);
+        modal.style.display='none';
+      });
+
+      cancelBtn.addEventListener('click', ()=>modal.style.display='none');
+      modal.style.display='flex';
+    }
+
+    // filtering
+    function applyFilters(){
+      let list = carsData.slice();
+      const q = qEl.value.trim().toLowerCase();
+      const seats = seatFilter.value;
+      const type = typeFilter.value;
+      const min = parseFloat(minP.value);
+      const max = parseFloat(maxP.value);
+
+      if(q) list = list.filter(c=> (c.brand+' '+c.model).toLowerCase().includes(q) );
+      if(seats!=='all') list = list.filter(c=>String(c.seats)===seats);
+      if(type!=='all') list = list.filter(c=>c.type===type);
+      if(activeTrans!=='all') list = list.filter(c=>c.trans===activeTrans);
+      if(activeFuel!=='all') list = list.filter(c=>c.fuel===activeFuel);
+      if(!isNaN(min)) list = list.filter(c=>c.price>=min);
+      if(!isNaN(max)) list = list.filter(c=>c.price<=max);
+
+      renderCars(list);
+    }
+
+    // bookings storage
+    function saveBookings(){ localStorage.setItem(LS_BOOK, JSON.stringify(bookings)); }
+    function loadBookings(){ try{ bookings = JSON.parse(localStorage.getItem(LS_BOOK))||[] }catch(e){ bookings=[] } }
+
+    function renderBookings(){
+      if(bookings.length===0){ bookingsArea.innerHTML = '<div class="sub">No bookings yet</div>'; return; }
+      const table = document.createElement('table');
+      table.innerHTML = `<thead><tr><th>Car</th><th>Name</th><th>Dates</th><th>Days</th><th>Total</th><th></th></tr></thead>`;
+      const tbody = document.createElement('tbody');
+      bookings.forEach(b=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${b.car}</td><td>${b.name}</td><td>${b.start} → ${b.end}</td><td>${b.days}</td><td>$${b.total}</td><td><button data-id="${b.id}" class="btn btn-ghost" onclick="cancelBooking('${b.id}')">Cancel</button></td>`;
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      bookingsArea.innerHTML=''; bookingsArea.appendChild(table);
+    }
+
+    // cancel booking handler exposed globally for inline onclick
+    window.cancelBooking = function(id){ if(confirm('Cancel this booking?')){ bookings = bookings.filter(b=>b.id!==id); saveBookings(); renderBookings(); } }
+
+    function onExportBookings(){ if(bookings.length===0) return alert('No bookings'); const hdr = 'id,car,name,email,start,end,days,total,extras,created\n'; const rows = bookings.map(b=>[b.id,`"${b.car}"`,`"${b.name}"`,b.email,b.start,b.end,b.days,b.total,`"gps:${b.extras.gps};child:${b.extras.child}"`,b.created].join(',')).join('\n'); const csv = hdr + rows; const blob = new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='bookings.csv'; a.click(); URL.revokeObjectURL(url); }
+
+    // initial run
+    init();
+  </script>
+</body>
+</html>
